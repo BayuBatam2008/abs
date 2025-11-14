@@ -547,9 +547,9 @@ impl MyWindow {
                         };
                         let chosen_shipping = ShippingInfo::default();
                         let chosen_payment = {
-                            let shared_p = shared_payment_data_clone.lock().unwrap();
-                            shared_p.get(0).unwrap().clone()
-                        };
+  						  let shared_p = shared_payment_data_clone.lock().unwrap();
+							shared_p.get(0).cloned().unwrap_or_else(|| PaymentInfo::default())
+						};
                         chosen_model.quantity = self2.kuan_text.text().unwrap_or_else(|_| String::new()).parse::<i32>().unwrap_or(1);
                         match timeout(Duration::from_secs(10), runtime::prepare_ext::get_shipping_data(client.clone(), base_headers.clone(), shared_headers.clone(), &device_info, Some(&product_info), &address_info, &chosen_model, &chosen_payment, &chosen_shipping)).await {
                             Ok(Ok(kurirs)) => {
