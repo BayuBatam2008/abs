@@ -438,10 +438,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let token = get_or_prompt(opt.token.as_deref(), "Token Media: ");
 	
 	// Try to fetch payment channels from API first, fallback to file if fails
+	// Use first product for payment channel detection
+	let first_product = product_infos.first().ok_or_else(|| {
+		anyhow::anyhow!("No products available for payment channel detection")
+	})?;
+	
 	let payment_info = match prepare::PaymentInfo::fetch_payment_channels(
 		client.clone(),
 		base_headers.clone(),
-		&product_infos[0],  // Use first product for payment channel detection
+		first_product,
 		&address_info,
 		&cookie_data,
 	).await {

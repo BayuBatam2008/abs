@@ -984,7 +984,7 @@ impl App {
             let notice_sender = self.notice_2.sender();
             let shared_data = self.shared_data.clone();
             let rt = tokio::runtime::Runtime::new().unwrap();
-            println!("start loading payment channels");
+            println!("Start loading payment channels");
             thread::spawn(move || {
                 rt.block_on(async {
                     match prepare::get_payment(&json_data) {
