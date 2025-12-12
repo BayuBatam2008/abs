@@ -295,6 +295,77 @@ pub fn populate_payment_combo(combo: &gui::ComboBox, shared_variation_clone: Arc
         // This is OK - payment channels can be fetched from API during task execution
     }
 }
+
+pub async fn fetch_payment_channels(
+    wnd: &gui::WindowMain,
+    combo: &gui::ComboBox,
+    shared_payment_data: &Arc<Mutex<Vec<prepare::PaymentInfo>>>,
+    file: &str,
+    url: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use std::sync::Arc;
+    
+    let cookie_content = prepare::read_cookie_file(file);
+    let cookie_data = prepare::CookieData::create_cookie(&cookie_content);
+    
+    // Process URL to get product_info
+    let mut product_info = prepare::process_url(url);
+    if product_info.shop_id == 0 && product_info.item_id == 0 {
+        if let Ok(redirect) = prepare::get_redirect_url(url).await {
+            product_info = prepare::process_url(&redirect);
+        }
+    }
+    
+    if product_info.shop_id == 0 || product_info.item_id == 0 {
+        let _ = error_cek(wnd, "Error", "Invalid product URL");
+        return Err("Invalid product URL".into());
+    }
+    
+    let client = Arc::new(prepare::universal_client_skip_headers().await);
+    let base_headers = Arc::new(prepare::create_headers(&cookie_data));
+    
+    // Get address info
+    let address_info = match prepare::address(client.clone(), base_headers.clone()).await {
+        Ok(addr) => addr,
+        Err(e) => {
+            let msg = format!("Failed to get address: {}", e);
+            let _ = error_cek(wnd, "Error", &msg);
+            return Err(e.into());
+        }
+    };
+    
+    // Fetch payment channels dari API
+    match prepare::PaymentInfo::fetch_payment_channels(
+        client,
+        base_headers,
+        &product_info,
+        &address_info,
+        &cookie_data,
+    ).await {
+        Ok(payment_info) => {
+            let mut shared = shared_payment_data.lock().unwrap();
+            shared.clear();
+            *shared = payment_info.clone();
+            
+            combo.items().delete_all();
+            for payment in &payment_info {
+                let _ = combo.items().add(&[payment.name.clone()]);
+            }
+            if !payment_info.is_empty() {
+                combo.items().select(Some(0));
+            }
+            
+            println!("Fetched {} payment channels from API", payment_info.len());
+            Ok(())
+        }
+        Err(e) => {
+            let msg = format!("Error fetching payment: {}", e);
+            let _ = error_cek(wnd, "Error", &msg);
+            Err(e.into())
+        }
+    }
+}
+
 pub fn detect_wine() -> Result<String, Box<dyn std::error::Error>> {
     let hntdll = w::HINSTANCE::GetModuleHandle(Some("ntdll.dll"))?;
     let run_win = match hntdll.GetProcAddress("wine_get_version") {

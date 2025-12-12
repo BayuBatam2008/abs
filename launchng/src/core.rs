@@ -29,6 +29,7 @@ pub struct MyWindow {
     mili_text: gui::Edit,
     btn_cek: gui::Button,
     btn_jalankan: gui::Button,
+    btn_fetch_payment: gui::Button,
     fsv_checkbox: gui::CheckBox,
     platform_checkbox: gui::CheckBox,
     platform_combobox: gui::ComboBox,
@@ -108,6 +109,14 @@ impl MyWindow {
             items: &["ShopeePay", "GoPay", "OVO"],
             selected_item: Some(0),
             resize_behavior: (gui::Horz::Resize, gui::Vert::None),
+            ..Default::default()
+        });
+        
+        let btn_fetch_payment = gui::Button::new(&wnd, gui::ButtonOpts {
+            text: "Fetch",
+            position: (295, 50),
+            size: (50, 23),
+            resize_behavior: (gui::Horz::Repos, gui::Vert::None),
             ..Default::default()
         });
     
@@ -396,7 +405,7 @@ impl MyWindow {
             variasi_combo, kurir_combo,
             harga_text, harga_checkbox, kuan_text,
             jam_text, menit_text, detik_text, mili_text,
-            btn_cek, btn_jalankan, fsv_checkbox, 
+            btn_cek, btn_jalankan, btn_fetch_payment, fsv_checkbox, 
             shop_checkbox, 
             platform_checkbox, platform_combobox,
             code_label, code_platform_text, code_shop_text,
@@ -595,6 +604,51 @@ impl MyWindow {
                 new_command.extend(command);
                 let _ = self2.execute(new_command);
             }
+            Ok(())
+        });
+        let self2 = self.clone();
+        self.btn_fetch_payment.on().bn_clicked(move || {
+            println!("Fetch Payment button clicked!");
+            self2.btn_fetch_payment.hwnd().EnableWindow(false);
+            let _ = self2.btn_fetch_payment.hwnd().SetWindowText("Wait");
+            
+            let file = match self2.file_combo.items().selected_text() {
+                Ok(Some(text)) => text,
+                Ok(None) => "".to_string(),
+                Err(_) => "".to_string()
+            };
+            
+            let url = self2.url_text.text().unwrap_or_else(|_| String::new());
+            
+            if file.is_empty() {
+                let _ = func_main::error_cek(&self2.wnd, "Error", "Please select a file first");
+                self2.btn_fetch_payment.hwnd().EnableWindow(true);
+                let _ = self2.btn_fetch_payment.hwnd().SetWindowText("Fetch");
+                return Ok(());
+            }
+            
+            if url.is_empty() {
+                let _ = func_main::error_cek(&self2.wnd, "Error", "Please enter product URL first");
+                self2.btn_fetch_payment.hwnd().EnableWindow(true);
+                let _ = self2.btn_fetch_payment.hwnd().SetWindowText("Fetch");
+                return Ok(());
+            }
+            
+            let self2_clone = self2.clone();
+            tokio::spawn(async move {
+                if let Err(e) = func_main::fetch_payment_channels(
+                    &self2_clone.wnd,
+                    &self2_clone.payment_combo,
+                    &self2_clone.shared_payment_data,
+                    &file,
+                    &url
+                ).await {
+                    eprintln!("Error fetching payment: {}", e);
+                }
+                self2_clone.btn_fetch_payment.hwnd().EnableWindow(true);
+                let _ = self2_clone.btn_fetch_payment.hwnd().SetWindowText("Fetch");
+            });
+            
             Ok(())
         });
         let self2 = self.clone();
