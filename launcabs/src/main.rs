@@ -984,14 +984,14 @@ impl App {
             let notice_sender = self.notice_2.sender();
             let shared_data = self.shared_data.clone();
             let rt = tokio::runtime::Runtime::new().unwrap();
-            println!("start opem");
+            println!("Start loading payment channels");
             thread::spawn(move || {
                 rt.block_on(async {
                     match prepare::get_payment(&json_data) {
                         Ok(payment_info) => {
                             let mut data = shared_data.write().unwrap();
                             data.name_payment = payment_info.iter().map(|payment| payment.name.clone()).collect();
-                            println!("end opem");
+                            println!("Loaded {} payment channels from file", payment_info.len());
                             // Send a notice to update the UI
                             notice_sender.notice();
                         },
@@ -1002,14 +1002,8 @@ impl App {
                 });
             });
         } else {
-            let p = nwg::MessageParams {
-                title: "File not found",
-                content: "File tidak ada.\n \nHarap Download ulang",
-                buttons: nwg::MessageButtons::Ok,
-                icons: nwg::MessageIcons::Warning
-            };
-            assert!(nwg::modal_message(&self.payment_combo, &p) == nwg::MessageChoice::Ok);
-            println!("Failed to read the folder contents");
+            println!("payment.txt not found - payment channels will be fetched from API when starting task");
+            // This is OK - payment channels can be fetched from API during task execution
         }
     }
     fn populate_default(&self) {

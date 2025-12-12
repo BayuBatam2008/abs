@@ -256,6 +256,182 @@ pub struct PaymentInfo {
     pub place_order: serde_json::Value,
 }
 
+impl PaymentInfo {
+    /// Fetch payment channels dari Shopee API menggunakan checkout/get endpoint
+    pub async fn fetch_payment_channels(
+        client: Arc<reqwest::Client>,
+        headers: Arc<HeaderMap>,
+        product_info: &ProductInfo,
+        address_info: &AddressInfo,
+        cookie_data: &CookieData,
+    ) -> anyhow::Result<Vec<PaymentInfo>> {
+        use serde_json::json;
+        
+        // Build minimal checkout request body untuk mendapatkan payment channels
+        let body_json = json!({
+            "timestamp": chrono::Utc::now().timestamp(),
+            "shoporders": [{
+                "shop": {
+                    "shopid": product_info.shop_id
+                },
+                "items": [{
+                    "itemid": product_info.item_id,
+                    "modelid": 0,
+                    "quantity": 1,
+                    "insurances": []
+                }],
+                "shipping_id": 1
+            }],
+            "selected_payment_channel_data": {
+                "channel_id": 0,
+                "version": 0
+            },
+            "promotion_data": {
+                "use_coins": false,
+                "platform_vouchers": [],
+                "shop_vouchers": [],
+                "check_shop_voucher_entrances": false,
+                "auto_apply_shop_voucher": false
+            },
+            "fsv_selection_infos": [],
+            "device_info": {},
+            "buyer_info": {
+                "kyc_info": null,
+                "checkout_email": ""
+            },
+            "cart_type": 1,
+            "client_id": 5,
+            "tax_info": {
+                "tax_id": ""
+            },
+            "client_event_info": {},
+            "add_to_cart_info": {},
+            "_cft": [469696383],
+            "dropshipping_info": {},
+            "shipping_orders": [{
+                "sync": true,
+                "buyer_address_data": {
+                    "addressid": address_info.id,
+                    "address_type": 0,
+                    "tax_address": ""
+                },
+                "selected_logistic_channelid": 0,
+                "shipping_id": 1,
+                "shoporder_indexes": [0],
+                "selected_preferred_delivery_time_option_id": 0
+            }],
+            "order_update_info": {}
+        });
+        
+        let url = "https://mall.shopee.co.id/api/v4/checkout/get";
+        println!("Fetching payment channels from: {}", url);
+        
+        let mut req_headers = (*headers).clone();
+        req_headers.insert("content-type", HeaderValue::from_static("application/json"));
+        req_headers.insert("x-csrftoken", HeaderValue::from_str(&cookie_data.csrftoken)?);
+        req_headers.insert("cookie", HeaderValue::from_str(&cookie_data.cookie_content)?);
+        req_headers.insert("af-ac-enc-dat", HeaderValue::from_static(""));
+        
+        let response = client
+            .post(url)
+            .headers(req_headers)
+            .json(&body_json)
+            .version(Version::HTTP_2)
+            .send()
+            .await?;
+        
+        let status = response.status();
+        if !status.is_success() {
+            return Err(anyhow::anyhow!("API request failed with status: {}", status));
+        }
+        
+        let response_json: Value = response.json().await?;
+        
+        // Extract payment channel option info dari response
+        let payment_channels = Self::parse_payment_channels(&response_json)?;
+        
+        if payment_channels.is_empty() {
+            println!("Warning: No payment channels found in API response");
+        } else {
+            println!("Found {} payment channels", payment_channels.len());
+        }
+        
+        Ok(payment_channels)
+    }
+    
+    /// Parse payment channels dari checkout_get response
+    fn parse_payment_channels(response: &Value) -> anyhow::Result<Vec<PaymentInfo>> {
+        let mut payment_channels = Vec::new();
+        
+        // Extract dari payment_channel_option_info jika ada
+        if let Some(option_info) = response.get("payment_channel_option_info") {
+            if let Some(channel_groups) = option_info.get("channel_groups") {
+                if let Some(groups) = channel_groups.as_array() {
+                    for group in groups {
+                        if let Some(channels) = group.get("channels").and_then(|c| c.as_array()) {
+                            for channel in channels {
+                                if let Ok(payment_info) = Self::parse_single_channel(channel) {
+                                    payment_channels.push(payment_info);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Jika tidak ada payment_channel_option_info, coba parse dari selected_payment_channel_data
+        if payment_channels.is_empty() {
+            if let Some(selected) = response.get("selected_payment_channel_data") {
+                if let Ok(payment_info) = Self::parse_single_channel(selected) {
+                    payment_channels.push(payment_info);
+                }
+            }
+        }
+        
+        Ok(payment_channels)
+    }
+    
+    /// Parse single payment channel dari JSON
+    fn parse_single_channel(channel: &Value) -> anyhow::Result<PaymentInfo> {
+        let channel_id = channel.get("channel_id")
+            .or_else(|| channel.get("channelId"))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        
+        let name = channel.get("name")
+            .or_else(|| channel.get("channel_name"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("Unknown")
+            .to_string();
+        
+        let version = channel.get("version")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        
+        let option_info = channel.get("channel_item_option_info")
+            .and_then(|c| c.get("option_info"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        
+        let txn_fee = channel.get("txn_fee")
+            .or_else(|| channel.get("txnFee"))
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        
+        Ok(PaymentInfo {
+            name,
+            channel_id,
+            option_info,
+            version,
+            txn_fee,
+            selected_get: channel.clone(),
+            place_order: channel.clone(),
+        })
+    }
+}
+
 #[derive(Deserialize)]
 struct Entry {
     payment: Vec<PaymentInfo>,
