@@ -765,7 +765,7 @@ impl App {
         self.cek_button.set_text("Cek");
     }
     fn fetch_payment(&self) {
-        // Disable button sementara
+        // Disable button temporarily
         self.fetch_payment_button.set_enabled(false);
         self.fetch_payment_button.set_text("Wait");
         
