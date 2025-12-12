@@ -2,7 +2,7 @@
     all(not(debug_assertions), target_os = "windows"),
     windows_subsystem = "windows"
 )]
-use ::runtime::prepare::{self, CookieData, ModelInfo, ProductInfo};
+use ::runtime::prepare::{self, CookieData, ModelInfo, ProductInfo, PaymentInfo};
 use native_windows_gui as nwg;
 use native_windows_derive::NwgUi;
 use native_windows_gui::NativeUi;
@@ -72,6 +72,11 @@ pub struct App {
     #[nwg_layout_item(layout: grid, col: 1, row: 1, col_span: 2)]
     payment_combo: nwg::ComboBox<String>,
 
+    #[nwg_control(text: "Fetch")]
+    #[nwg_layout_item(layout: grid, col: 3, row: 1)]
+    #[nwg_events( OnButtonClick: [App::fetch_payment], OnMouseMove: [App::on_hover])]
+    fetch_payment_button: nwg::Button,
+
     #[nwg_control(text: "Harga Max")]
     #[nwg_layout_item(layout: grid, col: 0, row: 2)]
     harga_label: nwg::Label,
@@ -94,11 +99,11 @@ pub struct App {
     kuan_text: nwg::TextInput,
 
     #[nwg_control(text: "Pilih file")]
-    #[nwg_layout_item(layout: grid, col: 3, row: 1)]
+    #[nwg_layout_item(layout: grid, col: 4, row: 1)]
     file_label: nwg::Label,
 
     #[nwg_control(v_align: nwg::VTextAlign::Bottom)]
-    #[nwg_layout_item(layout: grid, col: 4, row: 1, col_span: 2)]
+    #[nwg_layout_item(layout: grid, col: 5, row: 1)]
     file_combo: nwg::ComboBox<String>,
 
     #[nwg_control(text: "Variasi")]
@@ -567,6 +572,7 @@ impl App {
         self.tooltip.register(&self.cek_button.handle, "Cek Variasi dan Kurir");
         self.tooltip.register(&self.cek_checkbox.handle, "Official Shop?");
         self.tooltip.register(&self.refresh_button.handle, "Regenerate account files\n(DEBUG)");
+        self.tooltip.register(&self.fetch_payment_button.handle, "Fetch payment channels dari Shopee API");
     }
     fn exit(&self) {
         nwg::stop_thread_dispatch();
@@ -757,6 +763,91 @@ impl App {
         // Update the Button text and enable it
         self.cek_button.set_enabled(true);
         self.cek_button.set_text("Cek");
+    }
+    fn fetch_payment(&self) {
+        // Disable button sementara
+        self.fetch_payment_button.set_enabled(false);
+        self.fetch_payment_button.set_text("Wait");
+        
+        let file = self.file_combo.selection_string().unwrap_or_default();
+        let url = self.url_text.text().trim().to_string();
+        
+        if file.is_empty() {
+            self.error_cek("Error", "Please select a file first");
+            self.fetch_payment_button.set_enabled(true);
+            self.fetch_payment_button.set_text("Fetch");
+            return;
+        }
+        
+        if url.is_empty() {
+            self.error_cek("Error", "Please enter product URL first");
+            self.fetch_payment_button.set_enabled(true);
+            self.fetch_payment_button.set_text("Fetch");
+            return;
+        }
+        
+        let cookie_content = prepare::read_cookie_file(&file);
+        let cookie_data = prepare::CookieData::create_cookie(&cookie_content);
+        
+        let notice_sender = self.notice_2.sender();
+        let shared_data = self.shared_data.clone();
+        let button = self.fetch_payment_button.clone();
+        
+        thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async {
+                // Process URL to get product_info
+                let mut product_info = prepare::process_url(&url);
+                if product_info.shop_id == 0 && product_info.item_id == 0 {
+                    if let Ok(redirect) = prepare::get_redirect_url(&url).await {
+                        product_info = prepare::process_url(&redirect);
+                    }
+                }
+                
+                if product_info.shop_id == 0 || product_info.item_id == 0 {
+                    eprintln!("Invalid product URL");
+                    button.set_enabled(true);
+                    button.set_text("Fetch");
+                    return;
+                }
+                
+                let client = Arc::new(prepare::universal_client_skip_headers().await);
+                let base_headers = Arc::new(prepare::create_headers(&cookie_data));
+                
+                // Get address info
+                let address_info = match prepare::address(client.clone(), base_headers.clone()).await {
+                    Ok(addr) => addr,
+                    Err(e) => {
+                        eprintln!("Failed to get address: {}", e);
+                        button.set_enabled(true);
+                        button.set_text("Fetch");
+                        return;
+                    }
+                };
+                
+                // Fetch payment channels dari API
+                match prepare::PaymentInfo::fetch_payment_channels(
+                    client,
+                    base_headers,
+                    &product_info,
+                    &address_info,
+                    &cookie_data,
+                ).await {
+                    Ok(payment_info) => {
+                        let mut data = shared_data.write().unwrap();
+                        data.name_payment = payment_info.iter().map(|p| p.name.clone()).collect();
+                        println!("Fetched {} payment channels from API", payment_info.len());
+                        notice_sender.notice();
+                    }
+                    Err(e) => {
+                        eprintln!("Error fetching payment: {}", e);
+                    }
+                }
+                
+                button.set_enabled(true);
+                button.set_text("Fetch");
+            });
+        });
     }
     fn update_ui_2(&self) {
         let data = self.shared_data.read().unwrap();
