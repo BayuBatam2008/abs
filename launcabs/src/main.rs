@@ -33,9 +33,9 @@ pub struct SharedData {
 #[derive(Default, NwgUi)]
 pub struct App {
     #[nwg_control(
-        size: (500, 360),
+        size: (550, 400),
         position: (300, 300),
-        title: "Launcher for ABS",
+        title: "Auto Buy Shopee - Launcher",
         //flags: "WINDOW|VISIBLE|MINIMIZE_BOX|SYS_MENU",
         icon: Some(&nwg::Icon::from_bin(include_bytes!("32l.ico")).unwrap()),
         center: true,
@@ -43,10 +43,10 @@ pub struct App {
     #[nwg_events( OnWindowClose: [App::exit], OnInit: [App::init], OnKeyRelease:[App::key(SELF, EVT_DATA)])]
     window: nwg::Window,
 
-    #[nwg_layout(parent: window, spacing: 3)]
+    #[nwg_layout(parent: window, spacing: 5)]
     grid: nwg::GridLayout,
 
-    #[nwg_control(text: "URL")]
+    #[nwg_control(text: "URL Produk")]
     #[nwg_layout_item(layout: grid, col: 0, row: 0)]
     url_label: nwg::Label,
 
@@ -54,7 +54,7 @@ pub struct App {
     #[nwg_layout_item(layout: grid, col: 1, row: 0, col_span: 4)]
     url_text: nwg::TextInput,
     
-    #[nwg_control(text: "Cek")]
+    #[nwg_control(text: "Cek Produk")]
     #[nwg_layout_item(layout: grid, col: 5, row: 0)]
     #[nwg_events( OnButtonClick: [App::cek], OnMouseMove: [App::on_hover])]
     cek_button: nwg::Button,
@@ -64,7 +64,7 @@ pub struct App {
     #[nwg_events(OnMouseMove: [App::on_hover])]
     cek_checkbox: nwg::CheckBox,
 
-    #[nwg_control(text: "Payment")]
+    #[nwg_control(text: "Pembayaran")]
     #[nwg_layout_item(layout: grid, col: 0, row: 1)]
     payment_label: nwg::Label,
 
@@ -80,7 +80,7 @@ pub struct App {
     #[nwg_layout_item(layout: grid, col: 1, row: 2)]
     harga_text: nwg::TextInput,
 
-    #[nwg_control(text: "Apply")]
+    #[nwg_control(text: "Aktifkan")]
     #[nwg_layout_item(layout: grid, col: 2, row: 2)]
     #[nwg_events( OnButtonClick: [App::on_price_checkbox_change])]
     harga_checkbox: nwg::CheckBox,
@@ -93,7 +93,7 @@ pub struct App {
     #[nwg_layout_item(layout: grid, col: 1, row: 3, col_span: 2)]
     kuan_text: nwg::TextInput,
 
-    #[nwg_control(text: "Pilih file")]
+    #[nwg_control(text: "Akun")]
     #[nwg_layout_item(layout: grid, col: 3, row: 1)]
     file_label: nwg::Label,
 
@@ -117,7 +117,7 @@ pub struct App {
     #[nwg_layout_item(layout: grid, col: 4, row: 3, col_span: 2)]
     kurir_combo: nwg::ComboBox<String>,
     
-    #[nwg_control(text: "PromotionId", font: Some(&data.font_awesome))]
+    #[nwg_control(text: "Promotion ID", font: Some(&data.font_awesome))]
     #[nwg_layout_item(layout: grid, col: 0, row: 4)]
     promotionid_label: nwg::Label,
     
@@ -125,7 +125,7 @@ pub struct App {
     #[nwg_layout_item(layout: grid, col: 1, row: 4, col_span: 2)]
     promotionid_text: nwg::TextInput,
 
-    #[nwg_control(text: "Collection Id", h_align: nwg::HTextAlign::Center)]
+    #[nwg_control(text: "Collection ID", h_align: nwg::HTextAlign::Center)]
     #[nwg_layout_item(layout: grid, col: 0, row: 4)]
     cid_label: nwg::Label,
     
@@ -189,7 +189,7 @@ pub struct App {
     #[nwg_layout_item(layout: grid, col: 4, row: 6)]
     mili_text: nwg::TextInput,
 
-    #[nwg_control(text: "Jalankan")]
+    #[nwg_control(text: "🚀 Jalankan")]
     #[nwg_layout_item(layout: grid, col: 4, row: 7, col_span: 2)]
     #[nwg_events( OnButtonClick: [App::run], OnMouseMove: [App::on_hover], MousePressRightUp: [App::show_menu])]
     run_button: nwg::Button,
@@ -201,7 +201,7 @@ pub struct App {
     #[nwg_events(OnMenuItemSelected: [App::quick])]
     quick: nwg::MenuItem,
     
-    #[nwg_control(parent: launch, text: "Generate Sruct")]
+    #[nwg_control(parent: launch, text: "Generate Struct")]
     #[nwg_events(OnMenuItemSelected: [App::generate_cmd])]
     gen_launch: nwg::MenuItem,
 
@@ -214,12 +214,12 @@ pub struct App {
     #[nwg_events( OnButtonClick: [App::refresh_file_combo], OnMouseMove: [App::on_hover])]
     refresh_button: nwg::Button,
 
-    #[nwg_control(text: "fsv only")]
+    #[nwg_control(text: "FSV Only")]
     #[nwg_layout_item(layout: grid, col: 0, row: 7)]
     #[nwg_events( OnButtonClick: [App::on_fsv_checkbox_change])]
     fsv_checkbox: nwg::CheckBox,
 
-    #[nwg_control(text: "Voucher")]
+    #[nwg_control(text: "Platform")]
     #[nwg_layout_item(layout: grid, col: 1, row: 7)]
     #[nwg_events( OnButtonClick: [App::on_voucher_checkbox_change])]
     voucher_checkbox: nwg::CheckBox,
@@ -229,7 +229,7 @@ pub struct App {
     #[nwg_events( OnButtonClick: [App::on_code_checkbox_change])]
     code_checkbox: nwg::CheckBox,
 
-    #[nwg_control(text: "Collection id")]
+    #[nwg_control(text: "Collection ID")]
     #[nwg_layout_item(layout: grid, col: 3, row: 7)]
     #[nwg_events( OnButtonClick: [App::on_cid_checkbox_change])]
     cid_checkbox: nwg::CheckBox,
@@ -1019,8 +1019,8 @@ impl App {
         println!("Current local minute set: {}", minute);
         let media_model = vec!["No Media","Live","Video",];
         let version_info = env!("CARGO_PKG_VERSION");
-        let ver_label_info1 = "Launcher Auto Buy Shopee";
-        let ver_label_info2 = format!("Version : {}", version_info);
+        let ver_label_info1 = "Auto Buy Shopee - Launcher";
+        let ver_label_info2 = format!("Versi: {}", version_info);
         self.version_label.set_text(ver_label_info1);
         self.version_label2.set_text(&ver_label_info2);
         self.harga_text.set_text("1000");

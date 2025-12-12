@@ -58,11 +58,11 @@ impl MyWindow {
         let shared_kurir_data = Arc::new(Mutex::new(vec![]));
         let (menu, accel_table) = Self::build_menu().unwrap();
         let wnd = gui::WindowMain::new(gui::WindowMainOpts {
-            title: "Launcher *NG* for ABS",
+            title: "Auto Buy Shopee - Launcher NG",
             style: gui::WindowMainOpts::default().style
                 | co::WS::MINIMIZEBOX | co::WS::MAXIMIZEBOX | co::WS::SIZEBOX,
             class_icon: gui::Icon::Id(101),
-            size: (600, 410), // Lebar dan tinggi jendela
+            size: (650, 480), // Ukuran lebih besar untuk tampilan yang lebih nyaman
             menu,
             accel_table: Some(accel_table),
             ..Default::default()
@@ -71,209 +71,217 @@ impl MyWindow {
         let _status_bar = gui::StatusBar::new(
             &wnd,
             &[
-                gui::SbPart::Fixed(200),      // 200 pixels, never resizes
-                gui::SbPart::Proportional(1), // these two will fill the remaning space
-                gui::SbPart::Proportional(1),
+                gui::SbPart::Fixed(250),      // 250 pixels untuk info produk
+                gui::SbPart::Proportional(1), // sisa ruang untuk status
+                gui::SbPart::Fixed(100),      // untuk waktu/status
             ],
         );
     
-        // Input URL
+        // ========== SECTION: URL & Cek ==========
         let _lbl_url = gui::Label::new(&wnd, gui::LabelOpts {
-            text: "URL",
-            position: (10, 10),
+            text: "URL Produk",
+            position: (15, 15),
+            size: (70, 20),
             ..Default::default()
         });
         let url_text = gui::Edit::new(&wnd, gui::EditOpts {
-            position: (80, 10),
-            width: 400,
+            position: (90, 12),
+            width: 440,
             resize_behavior: (gui::Horz::Resize, gui::Vert::None),
             ..Default::default()
         });
         let btn_cek = gui::Button::new(&wnd, gui::ButtonOpts {
-            text: "Cek",
-            position: (500, 10),
+            text: "Cek Produk",
+            position: (545, 10),
+            width: 90,
             resize_behavior: (gui::Horz::Repos, gui::Vert::None),
             ..Default::default()
         });
     
-        // Payment ComboBox
-        let _lbl_payment = gui::Label::new(&wnd, gui::LabelOpts {
-            text: "Payment",
-            position: (10, 50),
-            ..Default::default()
-        });
-        let payment_combo = gui::ComboBox::new(&wnd, gui::ComboBoxOpts {
-            position: (80, 50),
-            width: 210,
-            items: &["ShopeePay", "GoPay", "OVO"],
-            selected_item: Some(0),
-            resize_behavior: (gui::Horz::Resize, gui::Vert::None),
-            ..Default::default()
-        });
-    
-        // File Picker
+        // ========== SECTION: Akun & Payment ==========
         let _lbl_file = gui::Label::new(&wnd, gui::LabelOpts {
-            text: "Pilih file",
-            position: (310, 50),
-            resize_behavior: (gui::Horz::Repos, gui::Vert::None),
+            text: "Akun",
+            position: (15, 50),
+            size: (70, 20),
             ..Default::default()
         });
         let file_combo = gui::ComboBox::new(&wnd, gui::ComboBoxOpts {
-            position: (380, 50),
-            width: 210,
+            position: (90, 47),
+            width: 200,
+            selected_item: Some(0),
+            resize_behavior: (gui::Horz::None, gui::Vert::None),
+            ..Default::default()
+        });
+        
+        let _lbl_payment = gui::Label::new(&wnd, gui::LabelOpts {
+            text: "Pembayaran",
+            position: (310, 50),
+            size: (80, 20),
+            ..Default::default()
+        });
+        let payment_combo = gui::ComboBox::new(&wnd, gui::ComboBoxOpts {
+            position: (395, 47),
+            width: 240,
+            items: &["ShopeePay", "GoPay", "OVO"],
             selected_item: Some(0),
             resize_behavior: (gui::Horz::Repos, gui::Vert::None),
             ..Default::default()
         });
-        // Harga Max & Kuantiti
+    
+        // ========== SECTION: Variasi & Kurir ==========
+        let _lbl_variasi = gui::Label::new(&wnd, gui::LabelOpts {
+            text: "Variasi",
+            position: (15, 85),
+            size: (70, 20),
+            ..Default::default()
+        });
+        let variasi_combo = gui::ComboBox::new(&wnd, gui::ComboBoxOpts {
+            position: (90, 82),
+            width: 200,
+            window_style: co::WS::CHILD | co::WS::VISIBLE | co::WS::TABSTOP | co::WS::VSCROLL | co::WS::GROUP | co::CBS::AUTOHSCROLL.into() | co::CBS::DISABLENOSCROLL.into(),
+            resize_behavior: (gui::Horz::None, gui::Vert::None),
+            ..Default::default()
+        });
+        
+        let _lbl_kurir = gui::Label::new(&wnd, gui::LabelOpts {
+            text: "Kurir",
+            position: (310, 85),
+            size: (80, 20),
+            ..Default::default()
+        });
+        let kurir_combo = gui::ComboBox::new(&wnd, gui::ComboBoxOpts {
+            position: (395, 82),
+            width: 240,
+            window_style: co::WS::CHILD | co::WS::VISIBLE | co::WS::TABSTOP | co::WS::VSCROLL | co::WS::GROUP | co::CBS::AUTOHSCROLL.into() | co::CBS::DISABLENOSCROLL.into(),
+            resize_behavior: (gui::Horz::Repos, gui::Vert::None),
+            ..Default::default()
+        });
+
+        // ========== SECTION: Harga Max & Kuantiti ==========
         let _lbl_harga = gui::Label::new(&wnd, gui::LabelOpts {
             text: "Harga Max",
-            position: (10, 80),
+            position: (15, 120),
+            size: (70, 20),
             ..Default::default()
         });
         let harga_text = gui::Edit::new(&wnd, gui::EditOpts {
             text: "1000",
-            position: (80, 80),
-            width: 150,
+            position: (90, 117),
+            width: 130,
             control_style: ES::NUMBER,
-            resize_behavior: (gui::Horz::Resize, gui::Vert::None),
+            resize_behavior: (gui::Horz::None, gui::Vert::None),
             ..Default::default()
         });
         let harga_checkbox = gui::CheckBox::new(&wnd, gui::CheckBoxOpts {
-            text: "Set",
-            position: (250, 80),
-            resize_behavior: (gui::Horz::Repos, gui::Vert::None),
+            text: "Aktifkan",
+            position: (230, 120),
+            size: (70, 20),
+            resize_behavior: (gui::Horz::None, gui::Vert::None),
             ..Default::default()
         });
     
         let _lbl_qty = gui::Label::new(&wnd, gui::LabelOpts {
             text: "Kuantiti",
-            position: (10, 110),
-            size: (60, 20),
+            position: (310, 120),
+            size: (80, 20),
             ..Default::default()
         });
         let kuan_text = gui::Edit::new(&wnd, gui::EditOpts {
             text: "1",
-            position: (80, 110),
-            width: 210,
+            position: (395, 117),
+            width: 80,
             control_style: ES::NUMBER,
-            resize_behavior: (gui::Horz::Resize, gui::Vert::None),
+            resize_behavior: (gui::Horz::None, gui::Vert::None),
             ..Default::default()
         });
-    
-        let _lbl_kurir = gui::Label::new(&wnd, gui::LabelOpts {
-            text: "Kurir",
-            position: (310, 110),
-            size: (60, 20),
-            resize_behavior: (gui::Horz::Repos, gui::Vert::None),
-            ..Default::default()
-        });
-        let kurir_combo = gui::ComboBox::new(&wnd, gui::ComboBoxOpts {
-            position: (380, 110),
-            width: 210,
-            window_style: co::WS::CHILD | co::WS::VISIBLE | co::WS::TABSTOP | co::WS::VSCROLL | co::WS::GROUP | co::CBS::AUTOHSCROLL.into() | co::CBS::DISABLENOSCROLL.into(),
-            resize_behavior: (gui::Horz::Repos, gui::Vert::None),
-            ..Default::default()
-        });
-    
-        let _lbl_variasi = gui::Label::new(&wnd, gui::LabelOpts {
-            text: "Variasi",
-            position: (310, 80),
-            size: (60, 20),
-            resize_behavior: (gui::Horz::Repos, gui::Vert::None),
-            ..Default::default()
-        });
-        let variasi_combo = gui::ComboBox::new(&wnd, gui::ComboBoxOpts {
-            position: (380, 80),
-            width: 210,
-            window_style: co::WS::CHILD | co::WS::VISIBLE | co::WS::TABSTOP | co::WS::VSCROLL | co::WS::GROUP | co::CBS::AUTOHSCROLL.into() | co::CBS::DISABLENOSCROLL.into(),
-            resize_behavior: (gui::Horz::Repos, gui::Vert::None),
-            ..Default::default()
-        });
+        
+        // ========== SECTION: Opsi Tambahan ==========
         let coins_checkbox = gui::CheckBox::new(&wnd, gui::CheckBoxOpts {
-            text: "Use Coins",
-            position: (380, 160),
+            text: "Pakai Koin",
+            position: (490, 120),
             size: (80, 20),
             check_state: co::BST::CHECKED,
             ..Default::default()
         });
         let bypass_checkbox = gui::CheckBox::new(&wnd, gui::CheckBoxOpts {
             text: "Bypass",
-            position: (480, 160),
-            size: (80, 20),
+            position: (575, 120),
+            size: (70, 20),
             check_state: co::BST::CHECKED,
             ..Default::default()
         });
     
-        // Time
+        // ========== SECTION: Waktu ==========
         let _time_label = gui::Label::new(&wnd, gui::LabelOpts {
-            text: "Time",
-            position: (10, 160),
-            size: (60, 20),
+            text: "Waktu",
+            position: (15, 160),
+            size: (70, 20),
             ..Default::default()
         });
         let _jam_label = gui::Label::new(&wnd, gui::LabelOpts {
             text: "Jam",
-            position: (80, 160),
-            size: (60, 20),
+            position: (90, 160),
+            size: (50, 18),
             control_style: SS::CENTER,
             ..Default::default()
         });
         let jam_text = gui::Edit::new(&wnd, gui::EditOpts {
             text: "23",
-            position: (80, 190),
-            width: 60,
+            position: (90, 180),
+            width: 50,
             control_style: ES::NUMBER,
             ..Default::default()
         });
         let _menit_label = gui::Label::new(&wnd, gui::LabelOpts {
             text: "Menit",
             position: (150, 160),
-            size: (60, 20),
+            size: (50, 18),
             control_style: SS::CENTER,
             ..Default::default()
         });
         let menit_text = gui::Edit::new(&wnd, gui::EditOpts {
             text: "59",
-            position: (150, 190),
-            width: 60,
+            position: (150, 180),
+            width: 50,
             control_style: ES::NUMBER,
             ..Default::default()
         });
         let _detik_label = gui::Label::new(&wnd, gui::LabelOpts {
             text: "Detik",
-            position: (220, 160),
-            size: (60, 20),
+            position: (210, 160),
+            size: (50, 18),
             control_style: SS::CENTER,
             ..Default::default()
         });
         let detik_text = gui::Edit::new(&wnd, gui::EditOpts {
             text: "59",
-            position: (220, 190),
-            width: 60,
+            position: (210, 180),
+            width: 50,
             control_style: ES::NUMBER,
             ..Default::default()
         });
         let _mili_label = gui::Label::new(&wnd, gui::LabelOpts {
             text: "Mili",
-            position: (290, 160),
-            size: (60, 20),
+            position: (270, 160),
+            size: (50, 18),
             control_style: SS::CENTER,
             ..Default::default()
         });
         let mili_text = gui::Edit::new(&wnd, gui::EditOpts {
             text: "900",
-            position: (290, 190),
-            width: 60,
+            position: (270, 180),
+            width: 50,
             control_style: ES::NUMBER,
             ..Default::default()
         });
     
-        // Tombol Jalankan
+        // ========== SECTION: Tombol Jalankan ==========
         let btn_jalankan = gui::Button::new(&wnd, gui::ButtonOpts {
-            text: "Jalankan",
-            position: (500, 300),
-            resize_behavior: (gui::Horz::Resize, gui::Vert::Repos),
+            text: "🚀 Jalankan",
+            position: (530, 370),
+            width: 105,
+            height: 35,
+            resize_behavior: (gui::Horz::Repos, gui::Vert::Repos),
             ..Default::default()
         });
 
@@ -287,99 +295,104 @@ impl MyWindow {
             ..Default::default()
         });*/
     
-        // Checkbox sebagai pengganti Radio Buttons
+        // ========== SECTION: Voucher Options ==========
         let fsv_checkbox = gui::CheckBox::new(&wnd, gui::CheckBoxOpts {
-            text: "fsv only",
-            position: (18, 240),
+            text: "FSV Only",
+            position: (15, 225),
             size: (80, 20),
             ..Default::default()
         });
     
         let platform_checkbox = gui::CheckBox::new(&wnd, gui::CheckBoxOpts {
-            text: "Platform",
-            position: (18, 270),
-            size: (80, 20),
+            text: "Platform Voucher",
+            position: (15, 255),
+            size: (120, 20),
             ..Default::default()
         });
 
         let platform_combobox = gui::ComboBox::new(&wnd, gui::ComboBoxOpts {
-            position: (130, 270),
-            width: 210,
-            items: &["Claim", "Code", "Collection id", "Link"],
+            position: (145, 252),
+            width: 180,
+            items: &["Claim", "Code", "Collection ID", "Link"],
             selected_item: Some(0),
             ..Default::default()
         });
     
         let shop_checkbox = gui::CheckBox::new(&wnd, gui::CheckBoxOpts {
             text: "Shop Code",
-            position: (18, 360),
-            size: (80, 20),
+            position: (15, 350),
+            size: (100, 20),
             ..Default::default()
         });
 
         let code_label = gui::Label::new(&wnd, gui::LabelOpts {
-            text: "Code",
-            position: (35, 300),
+            text: "Kode Voucher",
+            position: (35, 290),
+            size: (90, 20),
             ..Default::default()
         });
 
         let code_platform_text = gui::Edit::new(&wnd, gui::EditOpts {
-            position: (130, 300),
-            width: 210,
+            position: (145, 287),
+            width: 180,
             ..Default::default()
         });
 
         let code_shop_text = gui::Edit::new(&wnd, gui::EditOpts {
-            position: (130, 360),
-            width: 210,
+            position: (145, 347),
+            width: 180,
             ..Default::default()
         });
 
         let cid_label = gui::Label::new(&wnd, gui::LabelOpts {
-            text: "CollectionId",
-            position: (35, 300),
+            text: "Collection ID",
+            position: (35, 290),
+            size: (90, 20),
             ..Default::default()
         });
 
         let cid_text = gui::Edit::new(&wnd, gui::EditOpts {
-            position: (130, 300),
-            width: 210,
+            position: (145, 287),
+            width: 180,
             ..Default::default()
         });
 
         let link_label = gui::Label::new(&wnd, gui::LabelOpts {
             text: "Link Voucher",
-            position: (35, 300),
+            position: (35, 290),
+            size: (90, 20),
             ..Default::default()
         });
 
         let link_text = gui::Edit::new(&wnd, gui::EditOpts {
-            position: (130, 300),
-            width: 210,
+            position: (145, 287),
+            width: 180,
             ..Default::default()
         });
 
         let promotionid_label = gui::Label::new(&wnd, gui::LabelOpts {
-            text: "PromotionId",
-            position: (35, 300),
+            text: "Promotion ID",
+            position: (35, 290),
+            size: (90, 20),
             ..Default::default()
         });
 
         let promotionid_text = gui::Edit::new(&wnd, gui::EditOpts {
-            position: (130, 300),
-            width: 210,
+            position: (145, 287),
+            width: 180,
             ..Default::default()
         });
 
         let signature_label = gui::Label::new(&wnd, gui::LabelOpts {
             text: "Signature",
-            position: (35, 330),
+            position: (35, 320),
+            size: (90, 20),
             ..Default::default()
         });
 
         let signature_text = gui::Edit::new(&wnd, gui::EditOpts {
-            position: (130, 330),
-            width: 210,
+            position: (145, 317),
+            width: 180,
             ..Default::default()
         });
     
@@ -612,7 +625,7 @@ impl MyWindow {
         let self2 = self.clone();
         self.wnd.on().wm_create(move |_| {
             let version_info = env!("CARGO_PKG_VERSION");
-            let log_message1 = format!("Launcher \x1b[3mNG\x1b[0m Auto Buy Shopee Version : {}", version_info);
+            let log_message1 = format!("Auto Buy Shopee - Launcher NG v{}", version_info);
             println!("{}", log_message1);
             let local: DateTime<Local> = Local::now();
             let hour = local.hour().to_string();
@@ -624,6 +637,7 @@ impl MyWindow {
             };
             self2.coins_checkbox.set_state(co::BST::CHECKED);
             self2.fsv_checkbox.set_state(co::BST::CHECKED);
+            self2.bypass_checkbox.set_state(co::BST::UNCHECKED);
             let _ = self2.jam_text.set_text(&hour);
             let _ = self2.menit_text.set_text(&minute);
             self2.platform_combobox.hwnd().EnableWindow(false);
