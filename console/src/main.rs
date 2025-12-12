@@ -453,7 +453,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let max_price = opt.harga.clone().unwrap_or_else(|| get_user_input("Harga MAX:")).trim().to_string();
     let token = get_or_prompt(opt.token.as_deref(), "Token Media: ");
 	
-	let payment_info = prepare::get_payment(&prepare::open_payment_file().await?)?;
+	// Try to fetch payment channels from API first, fallback to file if fails
+	let payment_info = match prepare::PaymentInfo::fetch_payment_channels(
+		client.clone(),
+		base_headers.clone(),
+		&product_info,
+		&address_info,
+		&cookie_data,
+	).await {
+		Ok(payments) if !payments.is_empty() => {
+			println!("Successfully fetched {} payment channels from API", payments.len());
+			payments
+		}
+		Ok(_) | Err(_) => {
+			println!("Fetching from API failed or returned no results, trying payment.txt...");
+			match prepare::open_payment_file().await {
+				Ok(file_content) => {
+					match prepare::get_payment(&file_content) {
+						Ok(payments) => payments,
+						Err(e) => {
+							println!("Error: Failed to load payment channels from both API and file: {}", e);
+							println!("Please ensure payment.txt exists or API access is working.");
+							process::exit(1);
+						}
+					}
+				}
+				Err(e) => {
+					println!("Error: Failed to load payment.txt: {}", e);
+					println!("API fetch also failed. Please ensure payment.txt exists or API access is working.");
+					process::exit(1);
+				}
+			}
+		}
+	};
 
 	if let Some(payment) = collective::choose_payment(&payment_info, &opt) {
 		chosen_payment = payment;

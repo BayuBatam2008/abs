@@ -278,6 +278,7 @@ pub fn populate_payment_combo(combo: &gui::ComboBox, shared_variation_clone: Arc
                 let mut shared = shared_variation_clone.lock().unwrap();
                 shared.clear();
                 *shared = payment_info_list.clone(); 
+                println!("Loaded {} payment channels from file", payment_info_list.len());
                 for payment_info in payment_info_list {
                     let _ = combo.items().add(&[payment_info.name.to_string()]);
                     if combo.items().count() > Ok(0) {
@@ -290,7 +291,8 @@ pub fn populate_payment_combo(combo: &gui::ComboBox, shared_variation_clone: Arc
             }
         }
     } else {
-        println!("Failed to read the file contents");
+        println!("payment.txt not found - payment channels will be fetched from API when starting task");
+        // This is OK - payment channels can be fetched from API during task execution
     }
 }
 pub fn detect_wine() -> Result<String, Box<dyn std::error::Error>> {
