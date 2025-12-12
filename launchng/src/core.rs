@@ -115,7 +115,6 @@ impl MyWindow {
         let btn_fetch_payment = gui::Button::new(&wnd, gui::ButtonOpts {
             text: "Fetch",
             position: (295, 50),
-            size: (50, 23),
             resize_behavior: (gui::Horz::Repos, gui::Vert::None),
             ..Default::default()
         });
