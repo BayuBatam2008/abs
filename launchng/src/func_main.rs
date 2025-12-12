@@ -303,8 +303,6 @@ pub async fn fetch_payment_channels(
     file: &str,
     url: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use std::sync::Arc;
-    
     let cookie_content = prepare::read_cookie_file(file);
     let cookie_data = prepare::CookieData::create_cookie(&cookie_content);
     
@@ -334,7 +332,7 @@ pub async fn fetch_payment_channels(
         }
     };
     
-    // Fetch payment channels dari API
+    // Fetch payment channels from API
     match prepare::PaymentInfo::fetch_payment_channels(
         client,
         base_headers,

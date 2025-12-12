@@ -572,7 +572,7 @@ impl App {
         self.tooltip.register(&self.cek_button.handle, "Cek Variasi dan Kurir");
         self.tooltip.register(&self.cek_checkbox.handle, "Official Shop?");
         self.tooltip.register(&self.refresh_button.handle, "Regenerate account files\n(DEBUG)");
-        self.tooltip.register(&self.fetch_payment_button.handle, "Fetch payment channels dari Shopee API");
+        self.tooltip.register(&self.fetch_payment_button.handle, "Fetch payment channels from Shopee API");
     }
     fn exit(&self) {
         nwg::stop_thread_dispatch();
@@ -825,7 +825,7 @@ impl App {
                     }
                 };
                 
-                // Fetch payment channels dari API
+                // Fetch payment channels from API
                 match prepare::PaymentInfo::fetch_payment_channels(
                     client,
                     base_headers,
