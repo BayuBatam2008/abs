@@ -58,7 +58,10 @@ jobs:
     - name: Convert2
       if: matrix.platform.os_name == 'Windows-x86_64' || matrix.platform.os_name == 'Windows-i686' || matrix.platform.os_name == 'Windows-aarch64' || matrix.platform.os_name == 'Windows7-x86_64' || matrix.platform.os_name == 'Windows7-i686' || matrix.platform.os_name == 'WindowsXP-x86_64' || matrix.platform.os_name == 'WindowsXP-i686'
       run: |
-        choco install nasm
+        choco install nasm -y
+        choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+        choco install strawberryperl -y
+        choco install golang -y
 
     - name: Build binary Linux
       if: matrix.platform.os_name == 'Linux-x86_64' || matrix.platform.os_name == 'Linux-i686' || matrix.platform.os_name == 'Linux-aarch64'
