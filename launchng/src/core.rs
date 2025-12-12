@@ -207,7 +207,7 @@ impl MyWindow {
             text: "Bypass",
             position: (575, 120),
             size: (70, 20),
-            check_state: co::BST::CHECKED,
+            check_state: co::BST::UNCHECKED,
             ..Default::default()
         });
     
@@ -637,7 +637,6 @@ impl MyWindow {
             };
             self2.coins_checkbox.set_state(co::BST::CHECKED);
             self2.fsv_checkbox.set_state(co::BST::CHECKED);
-            self2.bypass_checkbox.set_state(co::BST::UNCHECKED);
             let _ = self2.jam_text.set_text(&hour);
             let _ = self2.menit_text.set_text(&minute);
             self2.platform_combobox.hwnd().EnableWindow(false);
