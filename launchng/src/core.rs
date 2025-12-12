@@ -29,6 +29,7 @@ pub struct MyWindow {
     mili_text: gui::Edit,
     btn_cek: gui::Button,
     btn_jalankan: gui::Button,
+    btn_fetch_payment: gui::Button,
     fsv_checkbox: gui::CheckBox,
     platform_checkbox: gui::CheckBox,
     platform_combobox: gui::ComboBox,
@@ -108,6 +109,13 @@ impl MyWindow {
             items: &["ShopeePay", "GoPay", "OVO"],
             selected_item: Some(0),
             resize_behavior: (gui::Horz::Resize, gui::Vert::None),
+            ..Default::default()
+        });
+        
+        let btn_fetch_payment = gui::Button::new(&wnd, gui::ButtonOpts {
+            text: "Fetch",
+            position: (295, 50),
+            resize_behavior: (gui::Horz::Repos, gui::Vert::None),
             ..Default::default()
         });
     
@@ -396,7 +404,7 @@ impl MyWindow {
             variasi_combo, kurir_combo,
             harga_text, harga_checkbox, kuan_text,
             jam_text, menit_text, detik_text, mili_text,
-            btn_cek, btn_jalankan, fsv_checkbox, 
+            btn_cek, btn_jalankan, btn_fetch_payment, fsv_checkbox, 
             shop_checkbox, 
             platform_checkbox, platform_combobox,
             code_label, code_platform_text, code_shop_text,
@@ -595,6 +603,110 @@ impl MyWindow {
                 new_command.extend(command);
                 let _ = self2.execute(new_command);
             }
+            Ok(())
+        });
+        let self2 = self.clone();
+        self.btn_fetch_payment.on().bn_clicked(move || {
+            println!("Fetch Payment button clicked!");
+            self2.btn_fetch_payment.hwnd().EnableWindow(false);
+            let _ = self2.btn_fetch_payment.hwnd().SetWindowText("Wait");
+            
+            let file = match self2.file_combo.items().selected_text() {
+                Ok(Some(text)) => text,
+                Ok(None) => "".to_string(),
+                Err(_) => "".to_string()
+            };
+            
+            let url = self2.url_text.text().unwrap_or_else(|_| String::new());
+            
+            if file.is_empty() {
+                let _ = func_main::error_cek(&self2.wnd, "Error", "Please select a file first");
+                self2.btn_fetch_payment.hwnd().EnableWindow(true);
+                let _ = self2.btn_fetch_payment.hwnd().SetWindowText("Fetch");
+                return Ok(());
+            }
+            
+            if url.is_empty() {
+                let _ = func_main::error_cek(&self2.wnd, "Error", "Please enter product URL first");
+                self2.btn_fetch_payment.hwnd().EnableWindow(true);
+                let _ = self2.btn_fetch_payment.hwnd().SetWindowText("Fetch");
+                return Ok(());
+            }
+            
+            // Clone data before spawning to avoid Send issues with GUI types
+            let shared_payment_data = self2.shared_payment_data.clone();
+            let payment_combo = self2.payment_combo.clone();
+            let btn_fetch = self2.btn_fetch_payment.clone();
+            
+            std::thread::spawn(move || {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    let cookie_content = prepare::read_cookie_file(&file);
+                    let cookie_data = prepare::CookieData::create_cookie(&cookie_content);
+                    
+                    // Process URL to get product_info
+                    let mut product_info = prepare::process_url(&url);
+                    if product_info.shop_id == 0 && product_info.item_id == 0 {
+                        if let Ok(redirect) = prepare::get_redirect_url(&url).await {
+                            product_info = prepare::process_url(&redirect);
+                        }
+                    }
+                    
+                    if product_info.shop_id == 0 || product_info.item_id == 0 {
+                        eprintln!("Invalid product URL");
+                        btn_fetch.hwnd().EnableWindow(true);
+                        let _ = btn_fetch.hwnd().SetWindowText("Fetch");
+                        return;
+                    }
+                    
+                    let client = Arc::new(prepare::universal_client_skip_headers().await);
+                    let base_headers = Arc::new(prepare::create_headers(&cookie_data));
+                    
+                    // Get address info
+                    let address_info = match prepare::address(client.clone(), base_headers.clone()).await {
+                        Ok(addr) => addr,
+                        Err(e) => {
+                            eprintln!("Failed to get address: {}", e);
+                            btn_fetch.hwnd().EnableWindow(true);
+                            let _ = btn_fetch.hwnd().SetWindowText("Fetch");
+                            return;
+                        }
+                    };
+                    
+                    // Fetch payment channels from API
+                    match prepare::PaymentInfo::fetch_payment_channels(
+                        client,
+                        base_headers,
+                        &product_info,
+                        &address_info,
+                        &cookie_data,
+                    ).await {
+                        Ok(payment_info) => {
+                            let mut shared = shared_payment_data.lock().unwrap();
+                            shared.clear();
+                            *shared = payment_info.clone();
+                            drop(shared); // Release lock before GUI operations
+                            
+                            payment_combo.items().delete_all();
+                            for payment in &payment_info {
+                                let _ = payment_combo.items().add(&[payment.name.clone()]);
+                            }
+                            if !payment_info.is_empty() {
+                                payment_combo.items().select(Some(0));
+                            }
+                            
+                            println!("Fetched {} payment channels from API", payment_info.len());
+                        }
+                        Err(e) => {
+                            eprintln!("Error fetching payment: {}", e);
+                        }
+                    }
+                    
+                    btn_fetch.hwnd().EnableWindow(true);
+                    let _ = btn_fetch.hwnd().SetWindowText("Fetch");
+                });
+            });
+            
             Ok(())
         });
         let self2 = self.clone();

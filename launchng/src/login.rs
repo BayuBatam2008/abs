@@ -10,7 +10,9 @@ use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
 
 use crate::func_main::png_base64_to_pixels_ptr;
 
-pub fn login_window(wnd: &gui::WindowModal) -> Result<(), ()> {
+pub fn login_window(wnd: &gui::WindowModal, cookie_edit: &gui::Edit, sz_edit: &gui::Edit) -> Result<(), ()> {
+    let cookie_edit_main = cookie_edit.clone();
+    let sz_edit_main = sz_edit.clone();
     let (tx_msg, rx_msg) = mpsc::unbounded_channel::<String>();
     let _ = tx_msg.send("Stopped".to_string());
     let interrupt_flag = Arc::new(AtomicBool::new(false));
@@ -21,14 +23,18 @@ pub fn login_window(wnd: &gui::WindowModal) -> Result<(), ()> {
     let label_clone = label.clone();
     let interrupt_flag_clone = interrupt_flag.clone();
     let tx_msg_clone = tx_msg.clone();
+    let cookie_edit_clone = cookie_edit_main.clone();
+    let sz_edit_clone = sz_edit_main.clone();
     button.on().bn_clicked(move || {
         println!("Button clicked");
-        let _ = login_internals(&label_clone, &interrupt_flag_clone, &tx_msg_clone);
+        let _ = login_internals(&label_clone, &interrupt_flag_clone, &tx_msg_clone, &cookie_edit_clone, &sz_edit_clone);
         Ok(())
     });
     let label_clone = label.clone();
     let interrupt_flag_clone = interrupt_flag.clone();
     let tx_msg_clone = tx_msg.clone();
+    let cookie_edit_clone = cookie_edit_main.clone();
+    let sz_edit_clone = sz_edit_main.clone();
     loginwnd.on().wm_init_dialog(move |_| {
         let bitmap_result = w::HINSTANCE::GetModuleHandle(None)
         .and_then(|hinstance| {
@@ -57,7 +63,7 @@ pub fn login_window(wnd: &gui::WindowModal) -> Result<(), ()> {
             };
             //button.hwnd().SetWindowText("Login");
         }
-        let _ = login_internals(&label_clone, &interrupt_flag_clone, &tx_msg_clone);
+        let _ = login_internals(&label_clone, &interrupt_flag_clone, &tx_msg_clone, &cookie_edit_clone, &sz_edit_clone);
         Ok(true)
     });
     let interrupt_flag_clone = interrupt_flag.clone();
@@ -83,9 +89,11 @@ pub fn login_window(wnd: &gui::WindowModal) -> Result<(), ()> {
     Ok(())
 }
 
-fn login_internals(label: &gui::Label, interrupt_flag: &Arc<AtomicBool>, tx_msg: &mpsc::UnboundedSender<String>) -> AnyResult<()> {
+fn login_internals(label: &gui::Label, interrupt_flag: &Arc<AtomicBool>, tx_msg: &mpsc::UnboundedSender<String>, cookie_edit: &gui::Edit, sz_edit: &gui::Edit) -> AnyResult<()> {
     println!("start login_internals");
     let label_clone2 = label.clone();
+    let cookie_edit_clone = cookie_edit.clone();
+    let sz_edit_clone = sz_edit.clone();
     interrupt_flag.store(false, Ordering::Relaxed);
     let interrupt_flag_clone = interrupt_flag.clone();
     let tx_msg = tx_msg.clone();
@@ -203,6 +211,19 @@ fn login_internals(label: &gui::Label, interrupt_flag: &Arc<AtomicBool>, tx_msg:
                         return;
                     }
                 };
+                
+                // Fill in the cookie edit field
+                println!("Setting cookie to edit field: {}", cookie);
+                let _ = cookie_edit_clone.set_text(&cookie);
+                
+                // Generate and set sz token (fingerprint)
+                // For QR login, we can use an empty or generated fingerprint
+                let sz_token = ""; // Empty fingerprint for QR login
+                let _ = sz_edit_clone.set_text(sz_token);
+                
+                println!("QR Login successful! Cookie and fingerprint set.");
+                let _ = tx_msg.send("Stopped".to_string());
+                return;
             }
         }
     });

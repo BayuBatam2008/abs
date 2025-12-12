@@ -935,9 +935,11 @@ pub fn account_window(wnd: &gui::WindowMain) -> Result<(), ()> {
         Ok(())
     });
     let wnd2_clone = wnd2.clone();
+    let cookie_edit_clone = cookie_edit.clone();
+    let sz_edit_clone = sz_edit.clone();
     qr_button.on().bn_clicked(move || {
         println!("QR Button clicked!");
-        let _ = login::login_window(&wnd2_clone);
+        let _ = login::login_window(&wnd2_clone, &cookie_edit_clone, &sz_edit_clone);
         Ok(())
     });
     let cookie_edit_clone = cookie_edit.clone();
