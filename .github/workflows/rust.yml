@@ -57,8 +57,27 @@ jobs:
 
     - name: Convert2
       if: matrix.platform.os_name == 'Windows-x86_64' || matrix.platform.os_name == 'Windows-i686' || matrix.platform.os_name == 'Windows-aarch64' || matrix.platform.os_name == 'Windows7-x86_64' || matrix.platform.os_name == 'Windows7-i686' || matrix.platform.os_name == 'WindowsXP-x86_64' || matrix.platform.os_name == 'WindowsXP-i686'
+      shell: powershell
       run: |
-        choco install nasm
+        choco install nasm -y
+        choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+        choco install strawberryperl -y
+        choco install golang -y
+        
+        # Refresh PATH
+        $env:ChocolateyInstall = Convert-Path "$((Get-Command choco).Path)\..\.."   
+        Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+        refreshenv
+        
+        # Verify installations
+        Write-Host "CMake version:"
+        cmake --version
+        Write-Host "Perl version:"
+        perl --version
+        Write-Host "Go version:"
+        go version
+        Write-Host "NASM version:"
+        nasm -v
 
     - name: Build binary Linux
       if: matrix.platform.os_name == 'Linux-x86_64' || matrix.platform.os_name == 'Linux-i686' || matrix.platform.os_name == 'Linux-aarch64'
@@ -69,63 +88,17 @@ jobs:
         cargo +stable build --release -j 8 --target ${{ matrix.platform.target }} -p savevoucher
         cargo +stable build --release -j 8 --target ${{ matrix.platform.target }} -p updater
 
-    - name: Build binary(abs)
-      uses: houseabsolute/actions-rust-cross@v0
+    - name: Build binary Windows
       if: matrix.platform.os_name == 'Windows-x86_64' || matrix.platform.os_name == 'Windows-i686' || matrix.platform.os_name == 'Windows-aarch64'
-      with:
-        command: "build"
-        target: ${{ matrix.platform.target }}
-        toolchain: ${{ matrix.toolchain }}
-        args: "--release -j 8 -p abs"
-        strip: true
-    - name: Build binary(multi)
-      uses: houseabsolute/actions-rust-cross@v0
-      if: matrix.platform.os_name == 'Windows-x86_64' || matrix.platform.os_name == 'Windows-i686' || matrix.platform.os_name == 'Windows-aarch64'
-      with:
-        command: "build"
-        target: ${{ matrix.platform.target }}
-        toolchain: ${{ matrix.toolchain }}
-        args: "--release -j 8 -p multi"
-        strip: true
-    - name: Build binary(savevoucher)
-      uses: houseabsolute/actions-rust-cross@v0
-      if: matrix.platform.os_name == 'Windows-x86_64' || matrix.platform.os_name == 'Windows-i686' || matrix.platform.os_name == 'Windows-aarch64'
-      with:
-        command: "build"
-        target: ${{ matrix.platform.target }}
-        toolchain: ${{ matrix.toolchain }}
-        args: "--release -j 8 -p savevoucher"
-        strip: true
-
-    - name: Build binary (lauchabs)
-      uses: houseabsolute/actions-rust-cross@v0
-      if: matrix.platform.os_name == 'Windows-x86_64' || matrix.platform.os_name == 'Windows-i686' || matrix.platform.os_name == 'Windows-aarch64' 
-      with:
-        command: "build"
-        target: ${{ matrix.platform.target }}
-        toolchain: ${{ matrix.toolchain }}
-        args: "--release -j 8 -p launcabs"
-        strip: true
-
-    - name: Build binary (LauncherNG)
-      uses: houseabsolute/actions-rust-cross@v0
-      if: matrix.platform.os_name == 'Windows-x86_64' || matrix.platform.os_name == 'Windows-i686' || matrix.platform.os_name == 'Windows-aarch64' 
-      with:
-        command: "build"
-        target: ${{ matrix.platform.target }}
-        toolchain: ${{ matrix.toolchain }}
-        args: "--release -j 8 -p launchng"
-        strip: true
-
-    - name: Build binary (updater)
-      uses: houseabsolute/actions-rust-cross@v0
-      if: matrix.platform.os_name == 'Windows-x86_64' || matrix.platform.os_name == 'Windows-i686' || matrix.platform.os_name == 'Windows-aarch64' 
-      with:
-        command: "build"
-        target: ${{ matrix.platform.target }}
-        toolchain: ${{ matrix.toolchain }}
-        args: "--release -j 8 -p updater"
-        strip: true
+      shell: powershell
+      run: |
+        rustup target add ${{ matrix.platform.target }}
+        cargo +stable build --release -j 8 --target ${{ matrix.platform.target }} -p abs
+        cargo +stable build --release -j 8 --target ${{ matrix.platform.target }} -p multi
+        cargo +stable build --release -j 8 --target ${{ matrix.platform.target }} -p savevoucher
+        cargo +stable build --release -j 8 --target ${{ matrix.platform.target }} -p launcabs
+        cargo +stable build --release -j 8 --target ${{ matrix.platform.target }} -p launchng
+        cargo +stable build --release -j 8 --target ${{ matrix.platform.target }} -p updater
 
     - name: Build for Android-NDK
       if: matrix.platform.os_name == 'Android-aarch64'
