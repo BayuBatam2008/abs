@@ -633,19 +633,78 @@ impl MyWindow {
                 return Ok(());
             }
             
-            let self2_clone = self2.clone();
-            tokio::spawn(async move {
-                if let Err(e) = func_main::fetch_payment_channels(
-                    &self2_clone.wnd,
-                    &self2_clone.payment_combo,
-                    &self2_clone.shared_payment_data,
-                    &file,
-                    &url
-                ).await {
-                    eprintln!("Error fetching payment: {}", e);
-                }
-                self2_clone.btn_fetch_payment.hwnd().EnableWindow(true);
-                let _ = self2_clone.btn_fetch_payment.hwnd().SetWindowText("Fetch");
+            // Clone data before spawning to avoid Send issues with GUI types
+            let shared_payment_data = self2.shared_payment_data.clone();
+            let payment_combo = self2.payment_combo.clone();
+            let btn_fetch = self2.btn_fetch_payment.clone();
+            
+            std::thread::spawn(move || {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    let cookie_content = prepare::read_cookie_file(&file);
+                    let cookie_data = prepare::CookieData::create_cookie(&cookie_content);
+                    
+                    // Process URL to get product_info
+                    let mut product_info = prepare::process_url(&url);
+                    if product_info.shop_id == 0 && product_info.item_id == 0 {
+                        if let Ok(redirect) = prepare::get_redirect_url(&url).await {
+                            product_info = prepare::process_url(&redirect);
+                        }
+                    }
+                    
+                    if product_info.shop_id == 0 || product_info.item_id == 0 {
+                        eprintln!("Invalid product URL");
+                        btn_fetch.hwnd().EnableWindow(true);
+                        let _ = btn_fetch.hwnd().SetWindowText("Fetch");
+                        return;
+                    }
+                    
+                    let client = Arc::new(prepare::universal_client_skip_headers().await);
+                    let base_headers = Arc::new(prepare::create_headers(&cookie_data));
+                    
+                    // Get address info
+                    let address_info = match prepare::address(client.clone(), base_headers.clone()).await {
+                        Ok(addr) => addr,
+                        Err(e) => {
+                            eprintln!("Failed to get address: {}", e);
+                            btn_fetch.hwnd().EnableWindow(true);
+                            let _ = btn_fetch.hwnd().SetWindowText("Fetch");
+                            return;
+                        }
+                    };
+                    
+                    // Fetch payment channels from API
+                    match prepare::PaymentInfo::fetch_payment_channels(
+                        client,
+                        base_headers,
+                        &product_info,
+                        &address_info,
+                        &cookie_data,
+                    ).await {
+                        Ok(payment_info) => {
+                            let mut shared = shared_payment_data.lock().unwrap();
+                            shared.clear();
+                            *shared = payment_info.clone();
+                            drop(shared); // Release lock before GUI operations
+                            
+                            payment_combo.items().delete_all();
+                            for payment in &payment_info {
+                                let _ = payment_combo.items().add(&[payment.name.clone()]);
+                            }
+                            if !payment_info.is_empty() {
+                                payment_combo.items().select(Some(0));
+                            }
+                            
+                            println!("Fetched {} payment channels from API", payment_info.len());
+                        }
+                        Err(e) => {
+                            eprintln!("Error fetching payment: {}", e);
+                        }
+                    }
+                    
+                    btn_fetch.hwnd().EnableWindow(true);
+                    let _ = btn_fetch.hwnd().SetWindowText("Fetch");
+                });
             });
             
             Ok(())
