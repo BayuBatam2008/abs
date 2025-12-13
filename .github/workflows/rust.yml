@@ -53,6 +53,13 @@ jobs:
         sudo apt install llvm-dev libclang-dev clang libgcc-9-dev-arm64-cross
         sudo apt install cmake g++-multilib gcc-multilib
 
+    - name: Install OpenSSL for Windows
+      if: matrix.platform.os_name == 'Windows-x86_64'
+      shell: powershell
+      run: |
+        choco install openssl --pre -y
+        $env:Path += ";C:\Program Files\OpenSSL-Win64\bin"
+
     - name: Convert
       if: matrix.platform.os_name == 'Linux-aarch64'
       run: |
