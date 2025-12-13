@@ -36,6 +36,12 @@ jobs:
           - stable
     steps:
     - uses: actions/checkout@v3
+    - name: Dependency Linux x86_64
+      if: matrix.platform.os_name == 'Linux-x86_64'
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential cmake perl golang libclang-dev
+
     - name: Dependency
       if: matrix.platform.os_name == 'Linux-i686'
       run: |
