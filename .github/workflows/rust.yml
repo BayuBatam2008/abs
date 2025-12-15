@@ -60,6 +60,12 @@ jobs:
         choco install openssl --pre -y
         $env:Path += ";C:\Program Files\OpenSSL-Win64\bin"
 
+    - name: Dependency Linux x86_64
+      if: matrix.platform.os_name == 'Linux-x86_64'
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential cmake perl golang libclang-dev libssl-dev  # <-- add libssl-dev here
+
     - name: Convert
       if: matrix.platform.os_name == 'Linux-aarch64'
       run: |
